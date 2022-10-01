@@ -18,8 +18,10 @@ import rsa
 def handle_receive():
     while True:
         response = client.recv(4096)
+        
         if response:
-            print(f"[*] Message from node: {response}")
+            response = response.decode('utf8')
+            print(f"礦工端的回應: {response}")
 
 class Transaction:
     def __init__(self, sender, receiver, amounts, fee, message):
@@ -73,7 +75,7 @@ def sign_transaction(transaction, private):    #透過sign_transaction簽署
     return signature
 
 if __name__ == "__main__":
-    target_host = "127.0.0.1"
+    target_host = "192.168.0.148"
     target_port = int(sys.argv[1])
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client.connect((target_host, target_port))
@@ -82,40 +84,42 @@ if __name__ == "__main__":
     receive_handler.start()
 
     command_dict = {
-        "1": "generate_address",
-        "2": "get_balance",
-        "3": "transaction"
+        "1": "產生錢包地址",
+        "2": "取得帳戶餘額",
+        "3": "發起交易"
     }
 
     while True:
-        print("Command list:")
-        print("1. generate_address")
-        print("2. get_balance")
-        print("3. transaction")
-        command = input("Command: ")
+        print("---------------------------------------------------")
+        print("服務列表:")
+        print("1. 產生帳戶地址")
+        print("2. 取得帳戶餘額")
+        print("3. 發起交易")
+        print("---------------------------------------------------")
+        command = input("請輸入您想要的服務代號: ")
         if str(command) not in command_dict.keys():
-            print("Unknown command.")
+            print("錯誤:未知指令")
             continue
         message = {
             "request": command_dict[str(command)]
         }
-        if command_dict[str(command)] == "generate_address":
+        if command_dict[str(command)] == "產生錢包地址":
             address, private_key = generate_address()
-            print(f"Address: {address}")
-            print(f"Private key: {private_key}")
+            print(f"你的錢包地址: {address}")
+            print(f"你的私鑰: {private_key}")
 
-        elif command_dict[str(command)] == "get_balance":
-            address = input("Address: ")
+        elif command_dict[str(command)] == "取得帳戶餘額":
+            address = input("你的錢包地址是: ")
             message['address'] = address
             client.send(pickle.dumps(message))
 
-        elif command_dict[str(command)] == "transaction":
-            address = input("Address: ")
-            private_key = input("Private_key: ")
-            receiver = input("Receiver: ")
-            amount = input("Amount: ")
-            fee = input("Fee: ")
-            comment = input("Comment: ")
+        elif command_dict[str(command)] == "發起交易":
+            address = input("你的錢包地址是: ")
+            private_key = input("你的私鑰是: ")
+            receiver = input("你要發錢給誰: ")
+            amount = input("你要發多少錢: ")
+            fee = input("你要付多少手續費: ")
+            comment = input("請留訊息備註: ")
             new_transaction = initialize_transaction(
                 address, receiver, int(amount), int(fee), comment
             )
@@ -126,5 +130,5 @@ if __name__ == "__main__":
             client.send(pickle.dumps(message))
 
         else:
-            print("Unknown command.")
+            print("錯誤:未知指令")
         time.sleep(1)
