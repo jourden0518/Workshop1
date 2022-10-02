@@ -65,7 +65,7 @@ def initialize_transaction(sender, receiver, amount, fee, message):    #初始�
     new_transaction = Transaction(sender, receiver, amount, fee, message)
     return new_transaction
 
-def sign_transaction(transaction, private):    #透過sign_transaction簽署
+def sign_transaction(transaction, private):    #透過 sign_transaction 簽署
     private_key = '-----BEGIN RSA PRIVATE KEY-----\n'
     private_key += private
     private_key += '\n-----END RSA PRIVATE KEY-----\n'
@@ -75,26 +75,75 @@ def sign_transaction(transaction, private):    #透過sign_transaction簽署
     return signature
 
 if __name__ == "__main__":
-    target_host = "192.168.0.148"
-    target_port = int(sys.argv[1])
-    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client.connect((target_host, target_port))
-
+    while(True):
+        try:
+            target_host = input("你要連線的礦工 IP 是: ")
+            target_port = int(input("你要連線的礦工 port 是: "))
+            client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            client.connect((target_host, target_port))
+            break
+        except:
+            print("連線發生錯誤，請確認對方的 IP & port 是否正確")
+            
     receive_handler = threading.Thread(target=handle_receive, args=())
     receive_handler.start()
 
     command_dict = {
-        "1": "產生錢包地址",
-        "2": "取得帳戶餘額",
-        "3": "發起交易"
+        "1": "取得帳戶餘額",
+        "2": "發起交易"
     }
 
+
+    while(True):
+        ans = input("之前有錢包和鑰匙了嗎?(y/n) ")
+        if (ans=='y' or ans=='n'):
+            break
+    if (ans=='n'):
+        address, private = generate_address()    #生成屬於你這個礦工的地址和私鑰
+        print("-------------------------------------------------------")
+        print("這是您的錢包地址與私鑰，請牢記")
+        print(f"礦工地址: {address}")
+        print(f"礦工私鑰: {private}")
+        print("-------------------------------------------------------")
+
+    elif (ans=='y'):
+        while(True):
+            try:
+                print("-------------------------------------------------------")
+                
+                address = input("你的錢包地址是: ")
+                private = input("你的私鑰是: ")
+
+                public_key = '-----BEGIN RSA PUBLIC KEY-----\n'
+                public_key += address
+                public_key += '\n-----END RSA PUBLIC KEY-----\n'
+                public_key_pkcs = rsa.PublicKey.load_pkcs1(public_key.encode('utf-8'))
+                
+                private_key = '-----BEGIN RSA PRIVATE KEY-----\n'
+                private_key += private
+                private_key += '\n-----END RSA PRIVATE KEY-----\n'
+                private_key_pkcs = rsa.PrivateKey.load_pkcs1(private_key.encode('utf-8'))
+                        
+                message = "temp".encode('utf8')
+
+                
+                tmp = rsa.encrypt(message, public_key_pkcs)
+                tmp = rsa.decrypt(tmp, private_key_pkcs)
+
+                if (tmp==message):
+                    print("登入成功！")
+                    break
+                else: 
+                    print("您輸入的錢包地址及私鑰有錯！")
+            except:
+                print("您輸入的錢包地址及私鑰有錯！")
+                continue
+    
     while True:
         print("---------------------------------------------------")
         print("服務列表:")
-        print("1. 產生帳戶地址")
-        print("2. 取得帳戶餘額")
-        print("3. 發起交易")
+        print("1. 取得帳戶餘額")
+        print("2. 發起交易")
         print("---------------------------------------------------")
         command = input("請輸入您想要的服務代號: ")
         if str(command) not in command_dict.keys():
@@ -103,12 +152,8 @@ if __name__ == "__main__":
         message = {
             "request": command_dict[str(command)]
         }
-        if command_dict[str(command)] == "產生錢包地址":
-            address, private_key = generate_address()
-            print(f"你的錢包地址: {address}")
-            print(f"你的私鑰: {private_key}")
-
-        elif command_dict[str(command)] == "取得帳戶餘額":
+        
+        if command_dict[str(command)] == "取得帳戶餘額":
             address = input("你的錢包地址是: ")
             message['address'] = address
             client.send(pickle.dumps(message))

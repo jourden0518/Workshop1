@@ -1,4 +1,3 @@
-from email import message
 import hashlib
 import pickle
 import socket
@@ -6,7 +5,6 @@ import sys
 import threading
 import time
 import random
-from tkinter.tix import Tree
 import rsa
 
 ##############節點端總共有三件事情可以做################
@@ -49,12 +47,16 @@ class BlockChain:
         self.pending_transactions = []    #等待中的交易
 
         # For P2P connection 準備socket的端口讓外界可以連入
-        self.socket_host = "192.168.0.148" 
-        self.socket_port = int(sys.argv[1])
+        
+        self.socket_host = socket.gethostbyname(socket.gethostname()) 
+        print("你的IP位址是: ", self.socket_host)
+        self.socket_port = 1112
+        print("你的port是: ", self.socket_port)
+        print("-------------------------------------------------------")
         self.node_address = {f"{self.socket_host}:{self.socket_port}"}
         self.connection_nodes = {}
-        if len(sys.argv) == 3:
-            self.clone_blockchain(sys.argv[2])
+        if len(sys.argv) == 2:
+            self.clone_blockchain(sys.argv[1])
             print(f"參與挖礦的節點列表: {self.node_address}")
             self.broadcast_message_to_nodes("add_node", self.socket_host+":"+str(self.socket_port))
         # For broadcast block
@@ -125,7 +127,7 @@ class BlockChain:
         new_block.difficulty = self.difficulty
         new_block.hash = self.get_hash(new_block, new_block.nonce)
         new_block.nonce = random.getrandbits(32)    #random.getrandbits(n)，隨機生成一個小於 2^n 的數 
-        
+
         while new_block.hash[0: self.difficulty] != '0' * self.difficulty:    #若至少有 self.difficulty 個 0，說明已經找到 nonce
             new_block.nonce += 1    
             new_block.hash = self.get_hash(new_block, new_block.nonce)
@@ -180,7 +182,7 @@ class BlockChain:
         return balance
 
     def verify_blockchain(self):    #確認整條鏈上的每個區塊的哈希值是否皆正確
-        previous_hash = ''    #previous_hash是上一個區塊上面紀錄的 hash ， block.previous_hash是這個區塊上紀錄「上一個區塊應該要有的 hash」
+        previous_hash = ''    #previous_hash是上一個區塊上面紀錄的 hash，block.previous_hash是這個區塊上紀錄「上一個區塊應該要有的 hash」
         for idx,block in enumerate(self.chain):    #從創世區塊的哈希數一路算到最後一個
             if self.get_hash(block, block.nonce) != block.hash:    #倘若竄改某transaction, block就會改變
                 print("錯誤: Hash not matched!")
@@ -232,56 +234,56 @@ class BlockChain:
         except Exception:
             return False, "交易簽名有錯！"
 
-    
-
     def start(self):    #啟動節點
         while(True):
+            print("-------------------------------------------------------")
             ans = input("之前有錢包和鑰匙了嗎?(y/n) ")
-            if (ans=='y' or ans=='n'):
+           
+            if (ans=='n'):
+                address, private = self.generate_address()    #生成屬於你這個礦工的地址和私鑰
+                print("-------------------------------------------------------")
+                print("這是您的錢包地址與私鑰，請牢記")
+                print(f"礦工地址: {address}")
+                print(f"礦工私鑰: {private}")
+                print("-------------------------------------------------------")
                 break
-        if (ans=='n'):
-            address, private = self.generate_address()    #生成屬於你這個礦工的地址和私鑰
-            print("-------------------------------------------------------")
-            print("這是您的錢包地址與私鑰，請牢記")
-            print(f"礦工地址: {address}")
-            print(f"礦工私鑰: {private}")
-            print("-------------------------------------------------------")
+            elif (ans=='y'):
+                while(True):
+                    try:
+                        print("-------------------------------------------------------")
+                        
+                        address = input("你的錢包地址是: ")
+                        private = input("你的私鑰是: ")
 
-        elif (ans=='y'):
-            while(True):
-                try:
-                    print("-------------------------------------------------------")
-                    
-                    address = input("你的錢包地址是: ")
-                    private = input("你的私鑰是: ")
+                        public_key = '-----BEGIN RSA PUBLIC KEY-----\n'
+                        public_key += address
+                        public_key += '\n-----END RSA PUBLIC KEY-----\n'
+                        public_key_pkcs = rsa.PublicKey.load_pkcs1(public_key.encode('utf-8'))
+                        
+                        private_key = '-----BEGIN RSA PRIVATE KEY-----\n'
+                        private_key += private
+                        private_key += '\n-----END RSA PRIVATE KEY-----\n'
+                        private_key_pkcs = rsa.PrivateKey.load_pkcs1(private_key.encode('utf-8'))
+                                
+                        message = "temp".encode('utf8')
 
-                    public_key = '-----BEGIN RSA PUBLIC KEY-----\n'
-                    public_key += address
-                    public_key += '\n-----END RSA PUBLIC KEY-----\n'
-                    public_key_pkcs = rsa.PublicKey.load_pkcs1(public_key.encode('utf-8'))
-                    
-                    private_key = '-----BEGIN RSA PRIVATE KEY-----\n'
-                    private_key += private
-                    private_key += '\n-----END RSA PRIVATE KEY-----\n'
-                    private_key_pkcs = rsa.PrivateKey.load_pkcs1(private_key.encode('utf-8'))
-                            
-                    message = "temp".encode('utf8')
+                        tmp = rsa.encrypt(message, public_key_pkcs)
+                        tmp = rsa.decrypt(tmp, private_key_pkcs)
 
-                    
-                    tmp = rsa.encrypt(message, public_key_pkcs)
-                    tmp = rsa.decrypt(tmp, private_key_pkcs)
-
-                    if (tmp==message):
-                        print("登入成功！")
-                        break
-                    else: 
+                        if (tmp==message):
+                            print("登入成功！")
+                            break
+                        else: 
+                            print("您輸入的錢包地址及私鑰有錯！")
+                    except:
                         print("您輸入的錢包地址及私鑰有錯！")
-                except:
-                    print("您輸入的錢包地址及私鑰有錯！")
-                    continue
-
-    
-        if len(sys.argv) < 3:
+                        continue
+                break
+        
+        
+        print("一切準備就緒，開始挖礦...")
+       
+        if len(sys.argv) < 2:
             self.create_genesis_block()
         while(True):
             self.mine_block(address)
@@ -333,10 +335,8 @@ class BlockChain:
                             new_transaction,
                             parsed_message["signature"]
                         )
-                        response = {
-                            "result": result,
-                            "result_message": result_message
-                        }
+                        response = result_message
+                        
                         if result:
                             self.broadcast_transaction(new_transaction)
                     
@@ -438,7 +438,7 @@ class BlockChain:
                 self.chain.append(block_data)
                 return True
             else:
-                print(f"接收到的區塊有錯誤:: Hash not matched by diff!")
+                print(f"接收到的區塊有錯誤: Hash not matched by diff!")
                 return False
 
 if __name__ == '__main__':
