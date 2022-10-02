@@ -4,7 +4,6 @@ import socket
 import sys
 import threading
 import time
-
 import rsa
 
 ############在使用者端總共有三件事情可以做##############
@@ -154,25 +153,33 @@ if __name__ == "__main__":
         }
         
         if command_dict[str(command)] == "取得帳戶餘額":
-            address = input("你的錢包地址是: ")
-            message['address'] = address
-            client.send(pickle.dumps(message))
+            try:
+                address = input("你的錢包地址是: ")
+                message['address'] = address
+                client.send(pickle.dumps(message))
+            except:
+                print("輸入資料有錯誤！")
+
 
         elif command_dict[str(command)] == "發起交易":
-            address = input("你的錢包地址是: ")
-            private_key = input("你的私鑰是: ")
-            receiver = input("你要發錢給誰: ")
-            amount = input("你要發多少錢: ")
-            fee = input("你要付多少手續費: ")
-            comment = input("請留訊息備註: ")
-            new_transaction = initialize_transaction(
-                address, receiver, int(amount), int(fee), comment
-            )
-            signature = sign_transaction(new_transaction, private_key)
-            message["data"] = new_transaction
-            message["signature"] = signature
+            try:
+                address = input("你的錢包地址是: ")
+                private_key = input("你的私鑰是: ")
+                receiver = input("你要發錢給誰(填他的錢包地址): ")
+                amount = input("你要發多少錢: ")
+                fee = input("你要付多少手續費: ")
+                comment = input("請留訊息備註: ")
+                new_transaction = initialize_transaction(
+                    address, receiver, int(amount), int(fee), comment
+                )
+                signature = sign_transaction(new_transaction, private_key)
+                message["data"] = new_transaction
+                message["signature"] = signature
 
-            client.send(pickle.dumps(message))
+                client.send(pickle.dumps(message))
+            except:
+                print("輸入資料有錯誤！")
+
 
         else:
             print("錯誤:未知指令")

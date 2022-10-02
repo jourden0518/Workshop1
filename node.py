@@ -1,3 +1,4 @@
+from enum import Flag
 import hashlib
 import pickle
 import socket
@@ -6,15 +7,22 @@ import threading
 import time
 import random
 import rsa
+import os
 
-your_IP = "192.168.74.192"    #請至cmd輸入ipconfig查詢IPv4位址
-your_port = 1111    #1111~1119都可以
+###############這邊每個人都要修改成自己的################
+
+your_IP = "192.168.120.192"    #請至 cmd 輸入 ipconfig 查詢 IPv4 位址並填入
+your_port = 1112    #從 1111~1119 都可以試試看
+first_miner = False    #你是第一個礦工嗎? 要自己創一個鏈請填寫 True 若要連別人鏈請填寫 False
+
+######################################################
+
 
 ##############節點端總共有三件事情可以做################
 
 ## 1. 產生公私鑰(錢包地址)
 ## 2. 儲存交易紀錄
-## 3. 確認帳戶餘額
+## 3. 確認帳戶餘額 
 ## 4. 驗證交易上面的數位簽章
 ## 5. 打包交易並挖掘新區塊
 
@@ -42,7 +50,7 @@ class Block:
 class BlockChain:
     def __init__(self):
         self.adjust_difficulty_blocks = 4    #每多少個區塊調節一次難度
-        self.difficulty = 7    #目前難度
+        self.difficulty = 6    #目前難度
         self.block_time = 40    #理想上多久能夠出一個區塊
         self.miner_rewards = 10    #挖礦獎勵
         self.block_limitation = 32    #區塊容量
@@ -50,22 +58,30 @@ class BlockChain:
         self.pending_transactions = []    #等待中的交易
 
         # For P2P connection 準備socket的端口讓外界可以連入
-        
+       
         self.socket_host = your_IP     
         print("你的IP位址是: ", self.socket_host)
         self.socket_port = your_port
         
         print("你的port是: ", self.socket_port)
         print("-------------------------------------------------------")
+
         self.node_address = {f"{self.socket_host}:{self.socket_port}"}
         self.connection_nodes = {}
-        if len(sys.argv) == 2:
-            self.clone_blockchain(sys.argv[1])
-            print(f"參與挖礦的節點列表: {self.node_address}")
-            self.broadcast_message_to_nodes("add_node", self.socket_host+":"+str(self.socket_port))
-        # For broadcast block
-        self.receive_verified_block = False
-        self.start_socket_server()
+
+        try:
+            if first_miner == False:
+                clone_from_ip = input("你要向誰拷貝區塊鏈(填他的IP): ")
+                clone_from_port = input("他使用的port是: ")
+                self.clone_blockchain(clone_from_ip+":"+str(clone_from_port))
+                print(f"參與挖礦的節點列表: {self.node_address}")
+                self.broadcast_message_to_nodes("add_node", self.socket_host+":"+str(self.socket_port))
+            
+            # For broadcast block
+            self.receive_verified_block = False
+            self.start_socket_server()
+        except:
+            sys.exit("socket 設置有錯誤")  
 
     def create_genesis_block(self):    #產生創世塊
         print("開始建立創世區塊...")
@@ -133,15 +149,13 @@ class BlockChain:
         new_block.nonce = random.getrandbits(32)    #random.getrandbits(n)，隨機生成一個小於 2^n 的數 
 
         while new_block.hash[0: self.difficulty] != '0' * self.difficulty:    #若至少有 self.difficulty 個 0，說明已經找到 nonce
-            new_block.nonce += 1    
+            new_block.nonce += 1    # <問題> 如果不是 +1 而是用別種調整方式，會造成影響嗎?
             new_block.hash = self.get_hash(new_block, new_block.nonce)
             if self.receive_verified_block:
                 print(f"別人的區塊驗證完成了. 開始挖新的區塊吧！")
                 self.receive_verified_block = False
                 return False
         
-
-
         print("我挖到區塊了，趕快廣播給大家！")
         self.broadcast_block(new_block)    #挖到礦了，要廣播給大家
 
@@ -162,18 +176,17 @@ class BlockChain:
             start = self.chain[-1*self.adjust_difficulty_blocks-1].timestamp
             finish = self.chain[-1].timestamp
             average_time_consumed = round((finish - start) / (self.adjust_difficulty_blocks), 2)
-            if average_time_consumed > self.block_time:    #平均出塊時間太久，礦工很少，difficulty調小
+            if average_time_consumed > self.block_time:    #平均出塊時間太久，礦工很少，difficulty 調小
             
-                if self.difficulty == 7:
-                    print(f"目前平均出塊時間:{average_time_consumed}s. Difficulty 維持 = 7")
-                    self.difficulty = 7
-                elif self.difficulty > 7:
-                    print(f"目前平均出塊時間:{average_time_consumed}s. 比 40 秒慢，降低 Difficulty")
-                    self.difficulty -= 1
+                print(f"目前平均出塊時間:{average_time_consumed}s. 比 {self.block_time} 秒慢，降低 Difficulty")
+                self.difficulty -= 1
             
             else:    #平均出塊時間太短，礦工很多，difficulty調大
-                print(f"目前平均出塊時間:{average_time_consumed}s. 比 40 秒快，提高 Difficulty")
+                print(f"目前平均出塊時間:{average_time_consumed}s. 比 {self.block_time} 秒快，提高 Difficulty")
                 self.difficulty += 1
+
+            # <問題> 調大調小不一定只能 +1 -1，有更好的調整方法嗎？
+
 
     def get_balance(self, account):    #檢查 匯款人 account 的餘額是否足夠
         balance = 0    #該帳戶的餘額
@@ -292,16 +305,18 @@ class BlockChain:
                         continue
                 break
         
-        
-        print("一切準備就緒，開始挖礦...")
-       
-        if len(sys.argv) < 2:
+
+        print("即將開始挖礦...")
+        os.system('pause')
+
+        if first_miner == True:
             self.create_genesis_block()
+    
         while(True):
             self.mine_block(address)
             self.adjust_difficulty()
 
-    def start_socket_server(self):    #用thread是為了在打包交易與挖礦的同時能夠接收外界的資訊
+    def start_socket_server(self):    #用 thread 是為了在打包交易與挖礦的同時能夠接收外界的資訊
         t = threading.Thread(target=self.wait_for_socket_connection)    #撰寫多執行緒（multithreading）的平行化程式，最基本的方式是使用 threading 這個模組來建立子執行緒
         t.start()    #執行該子執行緒
 
@@ -400,7 +415,7 @@ class BlockChain:
         response = pickle.loads(response)["blockchain_data"]
 
         self.adjust_difficulty_blocks = response.adjust_difficulty_blocks
-        self.difficulty = response.difficulty
+        self.difficulty = response.difficulty  
         self.block_time = response.block_time
         self.miner_rewards = response.miner_rewards
         self.block_limitation = response.block_limitation
@@ -433,14 +448,14 @@ class BlockChain:
         last_block = self.chain[-1]
         #對此 blockdata 的屬性逐一檢查
         if block_data.previous_hash != last_block.hash:    #先檢查 previous_hash是否正確
-            print("接收到的區塊有錯誤: Previous hash not matched!")
+            print("接收到的區塊有錯誤: Previous hash 不符合！")
             return False
         elif block_data.difficulty != self.difficulty:
-            print("接收到的區塊有錯誤: Difficulty not matched!")
+            print("接收到的區塊有錯誤: Difficulty 不符合！")
             return False
         elif block_data.hash != self.get_hash(block_data, block_data.nonce):
             print(block_data.hash)
-            print("接收到的區塊有錯誤: Hash calculation not matched!")
+            print("接收到的區塊有錯誤: 區塊 Hash 不符合！")
             return False
         else:    #確認資料格式是正確的同時要新區塊的交易從 pending_transactions中移除
             if block_data.hash[0: self.difficulty] == '0' * self.difficulty:
@@ -450,7 +465,7 @@ class BlockChain:
                 self.chain.append(block_data)
                 return True
             else:
-                print(f"接收到的區塊有錯誤: Hash not matched by diff!")
+                print(f"接收到的區塊有錯誤: 區塊 Hash 不符合 difficulty 要求之條件！")
                 return False
 
 if __name__ == '__main__':
