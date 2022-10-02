@@ -7,6 +7,9 @@ import time
 import random
 import rsa
 
+your_IP = "192.168.74.192"    #請至cmd輸入ipconfig查詢IPv4位址
+your_port = 1111    #1111~1119都可以
+
 ##############節點端總共有三件事情可以做################
 
 ## 1. 產生公私鑰(錢包地址)
@@ -39,8 +42,8 @@ class Block:
 class BlockChain:
     def __init__(self):
         self.adjust_difficulty_blocks = 4    #每多少個區塊調節一次難度
-        self.difficulty = 1    #目前難度
-        self.block_time = 15    #理想上多久能夠出一個區塊
+        self.difficulty = 7    #目前難度
+        self.block_time = 40    #理想上多久能夠出一個區塊
         self.miner_rewards = 10    #挖礦獎勵
         self.block_limitation = 32    #區塊容量
         self.chain = []    #區塊鏈中儲存的所有區塊
@@ -48,9 +51,10 @@ class BlockChain:
 
         # For P2P connection 準備socket的端口讓外界可以連入
         
-        self.socket_host = socket.gethostbyname(socket.gethostname()) 
+        self.socket_host = your_IP     
         print("你的IP位址是: ", self.socket_host)
-        self.socket_port = 1112
+        self.socket_port = your_port
+        
         print("你的port是: ", self.socket_port)
         print("-------------------------------------------------------")
         self.node_address = {f"{self.socket_host}:{self.socket_port}"}
@@ -136,6 +140,8 @@ class BlockChain:
                 self.receive_verified_block = False
                 return False
         
+
+
         print("我挖到區塊了，趕快廣播給大家！")
         self.broadcast_block(new_block)    #挖到礦了，要廣播給大家
 
@@ -157,10 +163,16 @@ class BlockChain:
             finish = self.chain[-1].timestamp
             average_time_consumed = round((finish - start) / (self.adjust_difficulty_blocks), 2)
             if average_time_consumed > self.block_time:    #平均出塊時間太久，礦工很少，difficulty調小
-                print(f"目前平均出塊時間:{average_time_consumed}s. 比 15 秒慢，降低 Difficulty")
-                self.difficulty -= 1
+            
+                if self.difficulty == 7:
+                    print(f"目前平均出塊時間:{average_time_consumed}s. Difficulty 維持 = 7")
+                    self.difficulty = 7
+                elif self.difficulty > 7:
+                    print(f"目前平均出塊時間:{average_time_consumed}s. 比 40 秒慢，降低 Difficulty")
+                    self.difficulty -= 1
+            
             else:    #平均出塊時間太短，礦工很多，difficulty調大
-                print(f"目前平均出塊時間:{average_time_consumed}s. 比 15 秒快，提高 Difficulty")
+                print(f"目前平均出塊時間:{average_time_consumed}s. 比 40 秒快，提高 Difficulty")
                 self.difficulty += 1
 
     def get_balance(self, account):    #檢查 匯款人 account 的餘額是否足夠
