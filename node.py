@@ -260,58 +260,61 @@ class BlockChain:
             return False, "交易簽名有錯！"
 
     def start(self):    #啟動節點
-        while(True):
-            print("-------------------------------------------------------")
-            ans = input("之前有錢包和鑰匙了嗎?(y/n) ")
-           
-            if (ans=='n'):
-                address, private = self.generate_address()    #生成屬於你這個礦工的地址和私鑰
+        try:
+            while(True):
                 print("-------------------------------------------------------")
-                print("這是您的錢包地址與私鑰，請牢記")
-                print(f"礦工地址: {address}")
-                print(f"礦工私鑰: {private}")
-                print("-------------------------------------------------------")
-                break
-            elif (ans=='y'):
-                while(True):
-                    try:
-                        print("-------------------------------------------------------")
-                        
-                        address = input("你的錢包地址是: ")
-                        private = input("你的私鑰是: ")
+                ans = input("之前有錢包和鑰匙了嗎?(y/n) ")
+            
+                if (ans=='n'):
+                    address, private = self.generate_address()    #生成屬於你這個礦工的地址和私鑰
+                    print("-------------------------------------------------------")
+                    print("這是您的錢包地址與私鑰，請牢記")
+                    print(f"礦工地址: {address}")
+                    print(f"礦工私鑰: {private}")
+                    print("-------------------------------------------------------")
+                    break
+                elif (ans=='y'):
+                    while(True):
+                        try:
+                            print("-------------------------------------------------------")
+                            
+                            address = input("你的錢包地址是: ")
+                            private = input("你的私鑰是: ")
 
-                        public_key = '-----BEGIN RSA PUBLIC KEY-----\n'
-                        public_key += address
-                        public_key += '\n-----END RSA PUBLIC KEY-----\n'
-                        public_key_pkcs = rsa.PublicKey.load_pkcs1(public_key.encode('utf-8'))
-                        
-                        private_key = '-----BEGIN RSA PRIVATE KEY-----\n'
-                        private_key += private
-                        private_key += '\n-----END RSA PRIVATE KEY-----\n'
-                        private_key_pkcs = rsa.PrivateKey.load_pkcs1(private_key.encode('utf-8'))
-                                
-                        message = "temp".encode('utf8')
+                            public_key = '-----BEGIN RSA PUBLIC KEY-----\n'
+                            public_key += address
+                            public_key += '\n-----END RSA PUBLIC KEY-----\n'
+                            public_key_pkcs = rsa.PublicKey.load_pkcs1(public_key.encode('utf-8'))
+                            
+                            private_key = '-----BEGIN RSA PRIVATE KEY-----\n'
+                            private_key += private
+                            private_key += '\n-----END RSA PRIVATE KEY-----\n'
+                            private_key_pkcs = rsa.PrivateKey.load_pkcs1(private_key.encode('utf-8'))
+                                    
+                            message = "temp".encode('utf8')
 
-                        tmp = rsa.encrypt(message, public_key_pkcs)
-                        tmp = rsa.decrypt(tmp, private_key_pkcs)
+                            tmp = rsa.encrypt(message, public_key_pkcs)
+                            tmp = rsa.decrypt(tmp, private_key_pkcs)
 
-                        if (tmp==message):
-                            print("登入成功！")
-                            break
-                        else: 
+                            if (tmp==message):
+                                print("登入成功！")
+                                break
+                            else: 
+                                print("您輸入的錢包地址及私鑰有錯！")
+                        except:
                             print("您輸入的錢包地址及私鑰有錯！")
-                    except:
-                        print("您輸入的錢包地址及私鑰有錯！")
-                        continue
-                break
+                            continue
+                    break
         
 
-        print("即將開始挖礦...")
-        os.system('pause')
+            print("即將開始挖礦...")
+            os.system('pause')
 
-        if first_miner == True:
-            self.create_genesis_block()
-    
+            if first_miner == True:
+                self.create_genesis_block()
+        except:
+            sys.exit("啟動節點失敗，檢查初始化設定")   
+
         while(True):
             self.mine_block(address)
             self.adjust_difficulty()
