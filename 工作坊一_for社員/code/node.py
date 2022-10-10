@@ -1,4 +1,3 @@
-from enum import Flag
 import hashlib
 import pickle
 import socket
@@ -11,9 +10,9 @@ import os
 
 ###############這邊每個人都要修改成自己的################
 
-your_IP = "192.168.120.192"    #請至 cmd 輸入 ipconfig 查詢 IPv4 位址並填入
-your_port = 1112    #從 1111~1119 都可以試試看
-first_miner = False    #你是第一個礦工嗎? 要自己創一個鏈請填寫 True 若要連別人鏈請填寫 False
+your_IP = "127.0.0.1"    #請至 cmd 輸入 ipconfig 查詢 IPv4 位址並填入
+your_port = 1111    #從 1111~1119 都可以試試看
+first_miner = True    #你是第一個礦工嗎? 要自己創一個鏈請填寫 True 若要連別人鏈請填寫 False
 
 ######################################################
 
@@ -50,7 +49,7 @@ class Block:
 class BlockChain:
     def __init__(self):
         self.adjust_difficulty_blocks = 4    #每多少個區塊調節一次難度
-        self.difficulty = 6    #目前難度
+        self.difficulty = 5    #目前難度
         self.block_time = 40    #理想上多久能夠出一個區塊
         self.miner_rewards = 10    #挖礦獎勵
         self.block_limitation = 32    #區塊容量
